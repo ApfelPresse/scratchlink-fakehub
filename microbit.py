@@ -1,4 +1,4 @@
-# microbit.py (neue Struktur im Stil von wedo.py)
+# microbit.py
 import asyncio
 import base64
 import json
@@ -53,63 +53,111 @@ class DevicePeripheral(PeripheralInterface):
 
 
 class MicrobitDevice(DevicePeripheral):
-    """
-    Micro:bit-Kompatible Fake-Peripheral im neuen Stil (wie WeDo):
-    - JSON-RPC-Handler via PeripheralInterface
-    - Start/Stop Notifications
-    - Write-Handling (decode opcodes)
-    - Eigene Push-Loop für Heartbeat (regelmäßig, wie in link_hub)
-    """
-
     def __init__(self, device_name="Fake-Microbit"):
         super().__init__(device_name)
         self.notifications_rx = False
         self.push_task: Optional[asyncio.Task] = None
         self._hb_t = 0
 
-    async def on_display_text(self, text: str):
-        logging.info(f"[DISPLAY] text={text!r}")
-
-    async def on_display_matrix(self, rows: Sequence[int]):
-        grid = "\n".join(
-            "".join("#" if (r >> (4 - c)) & 1 else "." for c in range(5)) for r in rows[:5]
-        )
-        logging.info(f"[DISPLAY] matrix:\n{grid}")
-
-    async def on_clear_display(self):
-        logging.info("[DISPLAY] clear")
-
-    async def on_set_pixel(self, x: int, y: int, on: bool):
-        logging.info(f"[DISPLAY] set_pixel x={x} y={y} on={on}")
-
     async def handle_rpc(self, ws, msg):
         self.register_ws(ws)
+        logging.debug(f"[RPC] received: {msg}")
         return await super().handle_rpc(ws, msg)
 
-    async def start_notifications(self, ws, msg_id, params):
-        await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))
-        svc, char = params.get("serviceId"), params.get("characteristicId")
-        logging.debug(f"[RECV] startNotifications → svc={svc} char={char}")
+    async def read(self, ws, msg_id, params):
+        logging.debug(f"[READ] params={params}")
+        if params.get("startNotifications"):
+            logging.debug("[READ] startNotifications==true → delegating to start_notifications")
+            await self.start_notifications(ws, msg_id, params)
+        else:
+            logging.debug("[READ] → simple ACK (no startNotifications)")
+            await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))
 
-        if svc == UUID.SVC_ID and (char or "").lower() == UUID.CHAR_RX.lower() and not self.notifications_rx:
-            self.notifications_rx = True
-            if not self.push_task:
-                self.push_task = asyncio.create_task(self._push_loop())
+    async def start_notifications(self, ws, msg_id, params):
+        logging.debug(f"[START_NOTIFICATIONS] called with params: {params}")
+        await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))
+
+        svc, char = params.get("serviceId"), params.get("characteristicId")
+        if not svc or not char:
+            raise Exception("[START_NOTIFICATIONS] Missing serviceId or characteristicId!")
+
+        logging.debug(f"[START_NOTIFICATIONS] serviceId={svc} char={char}")
+
+        if svc == UUID.SVC_ID and (char or "").lower() == UUID.CHAR_RX.lower():
+            if self.notifications_rx:
+                logging.warning("[START_NOTIFICATIONS] Already running → ignored")
+            else:
+                logging.info("[START_NOTIFICATIONS] Starting RX notifications + push loop")
+                self.notifications_rx = True
+                if not self.push_task:
+                    self.push_task = asyncio.create_task(self._push_loop())
+        else:
+            logging.debug(f"[START_NOTIFICATIONS] → conditions not met (svc={svc}, char={char})")
 
     async def stop_notifications(self, ws, msg_id, params):
+        logging.debug(f"[STOP_NOTIFICATIONS] called with params: {params}")
         await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))
+
         svc, char = params.get("serviceId"), params.get("characteristicId")
 
         if svc == UUID.SVC_ID and (char or "").lower() == UUID.CHAR_RX.lower():
+            logging.info("[STOP_NOTIFICATIONS] Stopping RX notifications")
             self.notifications_rx = False
             if self.push_task:
                 self.push_task.cancel()
                 self.push_task = None
+        else:
+            logging.debug(f"[STOP_NOTIFICATIONS] → no matching service/char")
+
+    async def _push_loop(self):
+        if HEARTBEAT_HZ <= 0:
+            logging.warning("[PUSH_LOOP] HEARTBEAT_HZ <= 0 → no heartbeat sent")
+            return
+
+        logging.info("[PUSH_LOOP] Starting heartbeat loop")
+        try:
+            period = 1.0 / HEARTBEAT_HZ
+            logging.debug(f"[PUSH_LOOP] Interval = {period:.3f}s")
+
+            while self.notifications_rx and self.ws:
+                await asyncio.sleep(period)
+                self._hb_t = (self._hb_t + 1) & 0xFF
+                payload = self._heartbeat_payload(self._hb_t)
+                logging.debug(f"[PUSH_LOOP] sending heartbeat tick={self._hb_t}")
+                await self._notify(UUID.SVC_ID, UUID.CHAR_RX, payload)
+
+            logging.info("[PUSH_LOOP] Exiting normally (no longer active)")
+        except Exception as e:
+            logging.exception(f"[PUSH_LOOP] Exception: {e}")
+            raise
+
+    @staticmethod
+    def _heartbeat_payload(t: int) -> bytes:
+        return bytes(((t + i * 11) & 0xFF for i in range(8)))
+
+    async def _notify(self, service_id: Any, char_id: str, payload: bytes):
+        if not self.ws:
+            logging.warning("[_NOTIFY] No WebSocket connection available!")
+            return
+        msg = {
+            "jsonrpc": "2.0",
+            "method": "characteristicDidChange",
+            "params": {
+                "serviceId": service_id,
+                "characteristicId": char_id,
+                "encoding": "base64",
+                "message": b64(payload),
+            },
+        }
+        logging.debug(f"[SEND] notify svc={service_id} char={char_id[-4:]} len={len(payload)}")
+        await self.ws.send(json.dumps(msg))
 
     async def write(self, ws, msg_id, params):
         payload = b64_to_bytes(params.get("message") or "")
         opcode = payload[0] if payload else None
         args = payload[1:] if len(payload) > 1 else b""
+
+        logging.debug(f"[WRITE] opcode=0x{(opcode or 0):02X} args={args.hex()}")
 
         if opcode == 0x81:
             text = args.decode("utf-8", errors="replace")
@@ -127,46 +175,27 @@ class MicrobitDevice(DevicePeripheral):
                 x, y, on = int(args[0]), int(args[1]), bool(args[2])
                 await self.on_set_pixel(x, y, on)
             else:
-                logging.info(f"[DISPLAY] raw {args.hex()} (short)")
+                logging.warning(f"[DISPLAY] raw {args.hex()} (short)")
 
         else:
-            logging.info(f"[UNKNOWN OPCODE] 0x{(opcode or 0):02X} args={args.hex()}")
+            logging.warning(f"[UNKNOWN OPCODE] 0x{(opcode or 0):02X} args={args.hex()}")
 
         await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))
 
-    async def _push_loop(self):
-        if HEARTBEAT_HZ <= 0:
-            return
-        raise Exception()
-        try:
-            period = 1.0 / HEARTBEAT_HZ
-            while self.notifications_rx and self.ws:
-                await asyncio.sleep(period)
-                self._hb_t = (self._hb_t + 1) & 0xFF
-                payload = self._heartbeat_payload(self._hb_t)
-                await self._notify(UUID.SVC_ID, UUID.CHAR_RX, payload)
-        except (ConnectionClosedError, ConnectionClosedOK, asyncio.CancelledError):
-            pass
+    async def on_display_text(self, text: str):
+        logging.info(f"[DISPLAY] text={text!r}")
 
-    @staticmethod
-    def _heartbeat_payload(t: int) -> bytes:
-        return bytes(((t + i * 11) & 0xFF for i in range(8)))
+    async def on_display_matrix(self, rows: Sequence[int]):
+        grid = "\n".join(
+            "".join("#" if (r >> (4 - c)) & 1 else "." for c in range(5)) for r in rows[:5]
+        )
+        logging.info(f"[DISPLAY] matrix:\n{grid}")
 
-    async def _notify(self, service_id: Any, char_id: str, payload: bytes):
-        if not self.ws:
-            return
-        msg = {
-            "jsonrpc": "2.0",
-            "method": "characteristicDidChange",
-            "params": {
-                "serviceId": service_id,
-                "characteristicId": char_id,
-                "encoding": "base64",
-                "message": b64(payload),
-            },
-        }
-        logging.debug(f"[SEND] notify svc={service_id} char={char_id[-4:]} len={len(payload)}")
-        await self.ws.send(json.dumps(msg))
+    async def on_clear_display(self):
+        logging.info("[DISPLAY] clear")
+
+    async def on_set_pixel(self, x: int, y: int, on: bool):
+        logging.info(f"[DISPLAY] set_pixel x={x} y={y} on={on}")
 
     async def button_a(self, pressed: Optional[bool] = None, value: Optional[int] = None):
         v = value if value is not None else (1 if pressed else 0)
@@ -180,9 +209,9 @@ class MicrobitDevice(DevicePeripheral):
         v = value if value is not None else (1 if pressed else 0)
         await self._notify(UUID.BTN_SERVICE, UUID.BTN_AB_CHAR, bytes([v]))
 
-    async def press_a(self):   await self.button_a(True)
+    async def press_a(self):    await self.button_a(True)
     async def release_a(self): await self.button_a(False)
-    async def press_b(self):   await self.button_b(True)
+    async def press_b(self):    await self.button_b(True)
     async def release_b(self): await self.button_b(False)
 
     async def pin_connected(self, pin: int, connected: bool):

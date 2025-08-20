@@ -2,14 +2,13 @@
 import asyncio
 import json
 import logging
-import base64
 from websockets import serve
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 
 class ScratchLinkHub:
-    def __init__(self, device):
-        self.device = device
+    def __init__(self, devices):
+        self.devices = devices
         self.ws = None
         self.server = None
         self.push_task = None
@@ -27,10 +26,12 @@ class ScratchLinkHub:
                 logging.debug("← %s", raw)
                 try:
                     msg = json.loads(raw)
-                    await self.device.handle_rpc(websocket, msg)
+                    for device in self.devices:
+                        await device.handle_rpc(websocket, msg)
                 except Exception as e:
                     logging.warning(f"RPC error: {e}")
         except (ConnectionClosedError, ConnectionClosedOK):
             logging.info("DISCONNECTED")
         finally:
-            await self.device.stop()
+            for device in self.devices:
+                await device.stop()

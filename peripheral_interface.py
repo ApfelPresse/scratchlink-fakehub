@@ -46,6 +46,8 @@ class PeripheralInterface:
             await self.stop_notifications(ws, msg_id, params)
         elif method == "write":
             await self.write(ws, msg_id, params)
+        elif method == "read":
+            await self.read(ws, msg_id, params)
         else:
             logging.debug(f"ACTION → fallback ACK method {method}")
             await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))

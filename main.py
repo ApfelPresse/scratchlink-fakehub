@@ -47,7 +47,7 @@ async def sensor_loop(device: MyFakeWeDo):
 async def main():
     wedo = MyFakeWeDo()
     microbit = MicrobitDevice()
-    hub = ScratchLinkHub(microbit)
+    hub = ScratchLinkHub(devices=[microbit, wedo])
 
     await asyncio.gather(
         hub.start(),
