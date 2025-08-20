@@ -38,12 +38,9 @@ class DevicePeripheral:
         self.name = device_name
         self.notifications_ports = False
         self.notifications_sensor = False
-        self.push_task = None
 
     async def stop(self):
-        if self.push_task:
-            self.push_task.cancel()
-            self.push_task = None
+        pass
 
     async def handle_rpc(self, ws, msg):
         method = msg.get("method")
@@ -79,9 +76,17 @@ class WeDoDevice(DevicePeripheral):
         self.devices = devices or {}
         self.motor_power = {port: 100 for port, dev in self.devices.items() if dev == WedoSensors.motor}
         self.tilt_x, self.tilt_y = 0, 200
+        self.ws = None
         self.tick = 0
+        self.push_task = None
+        self.sensor_interval = 0.5  # default auf 0.5s gesetzt
+        self.distance_value = 0
+
+    def register_ws(self, ws):
+        self.ws = ws
 
     async def handle_rpc(self, ws, msg):
+        self.register_ws(ws)
         if await super().handle_rpc(ws, msg):
             return
 
@@ -115,9 +120,10 @@ class WeDoDevice(DevicePeripheral):
                         }
                     })
 
-            if svc == UUID.SENSOR_SERVICE and char == UUID.SENSOR_CHAR and not self.notifications_sensor:
+            if svc == UUID.SENSOR_SERVICE and char == UUID.SENSOR_CHAR:
                 self.notifications_sensor = True
-                self.push_task = asyncio.create_task(self._push_loop(ws))
+                if not self.push_task:
+                    self.push_task = asyncio.create_task(self._push_loop())
 
         elif method == "write":
             svc = params.get("serviceId", "")
@@ -149,29 +155,9 @@ class WeDoDevice(DevicePeripheral):
         elif msg_id is not None:
             await send({"jsonrpc": "2.0", "id": msg_id, "result": {}})
 
-    def encode_attach(self, port: int, device: str) -> str:
-        dev_type = DEVICE_TYPES[device]
-        head = [0x01, 0x01, 0x00, dev_type] if port == 1 else [0x02, 0x01, 0x01, dev_type]
-        body = [0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x10]
-        return b64(bytes(head + body))
-
-    def encode_sensor(self, port: int, device: str) -> str:
-        if device == WedoSensors.tilt:
-            logging.info(f"→ sending tilt on port {port}")
-            return b64(bytes([0x05, port, self.tilt_x, self.tilt_y]))
-        elif device == WedoSensors.distance:
-            val = (self.tick % 21) * 5
-            logging.info(f"→ sending distance on port {port}: {val}")
-            return b64(bytes([0x05, port, val]))
-        elif device == WedoSensors.motor:
-            val = self.motor_power.get(port, 100)
-            logging.info(f"→ sending motor echo on port {port}: {val}")
-            return b64(bytes([0x05, port, val]))
-        return ""
-
-    async def _push_loop(self, ws):
+    async def _push_loop(self):
         try:
-            while self.notifications_sensor:
+            while self.notifications_sensor and self.ws:
                 self.tick += 1
                 for port, device in self.devices.items():
                     payload = self.encode_sensor(port, device)
@@ -186,29 +172,71 @@ class WeDoDevice(DevicePeripheral):
                                 "message": payload,
                             }
                         }
-                        await ws.send(json.dumps(msg))
-                await asyncio.sleep(0.25)
+                        await self.ws.send(json.dumps(msg))
+                await asyncio.sleep(self.sensor_interval)
         except (ConnectionClosedError, ConnectionClosedOK):
             pass
 
+    def encode_attach(self, port: int, device: str) -> str:
+        dev_type = DEVICE_TYPES[device]
+        head = [0x01, 0x01, 0x00, dev_type] if port == 1 else [0x02, 0x01, 0x01, dev_type]
+        body = [0x00, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x10]
+        return b64(bytes(head + body))
+
+    def encode_sensor(self, port: int, device: str) -> str:
+        if device == WedoSensors.tilt:
+            logging.debug(f"→ sending tilt on port {port}")
+            return b64(bytes([0x05, port, self.tilt_x, self.tilt_y]))
+        elif device == WedoSensors.distance:
+            val = self.distance_value
+            logging.debug(f"→ sending distance on port {port}: {val}")
+            return b64(bytes([0x05, port, val]))
+        elif device == WedoSensors.motor:
+            val = self.motor_power.get(port, 100)
+            logging.debug(f"→ sending motor echo on port {port}: {val}")
+            return b64(bytes([0x05, port, val]))
+        return ""
+
+    def find_port(self, sensor_type: str) -> Optional[int]:
+        for port, dev in self.devices.items():
+            if dev == sensor_type:
+                return port
+        return None
+
+    def set_distance(self, value: int):
+        port = self.find_port(WedoSensors.distance)
+        if port is None:
+            logging.warning("No distance sensor configured")
+            return
+        self.distance_value = max(0, min(255, value))
+        logging.info(f"→ [DISTANCE] value={self.distance_value}")
+
     async def on_motor_power(self, port: int, power: int, direction: int):
-        logging.info(f"→ [MOTOR] port={port} dir={'cw' if direction>0 else 'ccw'} power={power}")
+        logging.info(f"→ [MOTOR] port={port} dir={'cw' if direction > 0 else 'ccw'} power={power}")
 
     def set_tilt(self, x: int, y: int):
         self.tilt_x = max(0, min(255, x))
         self.tilt_y = max(0, min(255, y))
 
     def tilt_up(self):
-        self.set_tilt(0, 200)
+        logging.info(f"→ wedo tilt up")
+        self.set_tilt(0, 60)
 
     def tilt_down(self):
-        self.set_tilt(0, 50)
+        logging.info(f"→ wedo tilt down")
+        self.set_tilt(0, 30)
 
     def tilt_left(self):
-        self.set_tilt(200, 0)
+        logging.info(f"→ wedo tilt left")
+        self.set_tilt(60, 0)
 
     def tilt_right(self):
-        self.set_tilt(50, 0)
+        logging.info(f"→ wedo tilt right")
+        self.set_tilt(30, 0)
+
+    def set_sensor_interval(self, seconds: float):
+        self.sensor_interval = max(0.05, seconds)
+        logging.info(f"→ [SENSOR LOOP] interval set to {self.sensor_interval:.2f}s")
 
     async def set_light_color(self, color_index: int):
         rgb = self._palette(color_index)
