@@ -12,8 +12,8 @@ class MyFakeWeDo(WeDoDevice):
 
     def __init__(self):
         super().__init__(device_name="Fake-Wedo", devices={
-            1: WedoSensors.motor,
-            2: WedoSensors.motor,
+            1: WedoSensors.distance,
+            2: WedoSensors.tilt,
         })
 
     async def on_motor_power(self, port, power, direction):
@@ -47,11 +47,11 @@ async def sensor_loop(device: MyFakeWeDo):
 async def main():
     wedo = MyFakeWeDo()
     microbit = MicrobitDevice()
-    hub = ScratchLinkHub(devices=[microbit, wedo])
+    hub = ScratchLinkHub(devices=[wedo, microbit])
 
     await asyncio.gather(
         hub.start(),
-        #sensor_loop(wedo),
+        sensor_loop(wedo),
     )
 
 
