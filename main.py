@@ -2,6 +2,7 @@
 import asyncio
 import logging
 from hub import ScratchLinkHub
+from microbit import MicrobitDevice
 from wedo import WeDoDevice, WedoSensors
 
 logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(message)s")
@@ -11,8 +12,8 @@ class MyFakeWeDo(WeDoDevice):
 
     def __init__(self):
         super().__init__(device_name="Fake-Wedo", devices={
-            1: WedoSensors.distance,
-            2: WedoSensors.tilt,
+            1: WedoSensors.motor,
+            2: WedoSensors.motor,
         })
 
     async def on_motor_power(self, port, power, direction):
@@ -44,12 +45,13 @@ async def sensor_loop(device: MyFakeWeDo):
 
 
 async def main():
-    device = MyFakeWeDo()
-    hub = ScratchLinkHub(device)
+    wedo = MyFakeWeDo()
+    microbit = MicrobitDevice()
+    hub = ScratchLinkHub(microbit)
 
     await asyncio.gather(
         hub.start(),
-        sensor_loop(device),
+        #sensor_loop(wedo),
     )
 
 
