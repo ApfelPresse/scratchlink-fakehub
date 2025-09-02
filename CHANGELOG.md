@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.3 (2025-09-02)
+
+### Bug Fixes
+
+- Release only if build and test are completed
+  ([`833ab76`](https://github.com/ApfelPresse/scratchlink-fakehub/commit/833ab76edb5ba197d51fae776ac8f23c43612511))
+
+
 ## v1.0.2 (2025-09-02)
 
 ### Bug Fixes

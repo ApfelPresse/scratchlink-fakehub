@@ -1,6 +1,6 @@
 [project]
 name = "scratchlink-fakehub"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
     "websockets>=11.0"
 ]
