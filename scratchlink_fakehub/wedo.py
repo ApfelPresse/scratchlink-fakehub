@@ -5,7 +5,7 @@ import logging
 from typing import Dict, Optional
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
-from peripheral_interface import PeripheralInterface
+from .peripheral_interface import PeripheralInterface
 
 
 class UUID:

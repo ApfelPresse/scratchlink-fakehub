@@ -6,7 +6,7 @@ import pytest
 from websockets.exceptions import ConnectionClosedOK
 
 from tests.conftest import FakeWebSocket, b64_to_bytes, all_json
-from wedo import WeDoDevice, WedoSensors, UUID, DEVICE_TYPES
+from scratchlink_fakehub.wedo import WeDoDevice, WedoSensors, UUID, DEVICE_TYPES
 
 
 def _last_change_for(ws, char_id):

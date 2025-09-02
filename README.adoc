@@ -12,7 +12,8 @@ A lightweight WebSocket server emulating Scratch Link BLE devices – specifical
 
 [source,bash]
 ----
-pip install -r requirements.txt
+
+pip install https://github.com/ApfelPresse/scratchlink-fakehub.git
 python3 main.py
 ----
 

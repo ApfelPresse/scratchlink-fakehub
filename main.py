@@ -1,9 +1,8 @@
-# main.py
 import asyncio
 import logging
-from hub import ScratchLinkHub
-from microbit import MicrobitDevice
-from wedo import WeDoDevice, WedoSensors
+from scratchlink_fakehub.hub import ScratchLinkHub
+from scratchlink_fakehub.microbit import MicrobitDevice
+from scratchlink_fakehub.wedo import WeDoDevice, WedoSensors
 
 logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(message)s")
 

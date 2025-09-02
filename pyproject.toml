@@ -1,0 +1,11 @@
+[project]
+name = "scratchlink-fakehub"
+version = "0.1.3"
+dependencies = [
+    "websockets>=11.0"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest"
+]

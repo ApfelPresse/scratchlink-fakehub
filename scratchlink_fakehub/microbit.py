@@ -1,4 +1,3 @@
-# microbit.py
 import asyncio
 import base64
 import json
@@ -7,7 +6,7 @@ import os
 from typing import Sequence, Dict, Any, Optional
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
-from peripheral_interface import PeripheralInterface
+from .peripheral_interface import PeripheralInterface
 
 HEARTBEAT_HZ = float(os.getenv("SL_HEARTBEAT_HZ", "1.0"))
 
