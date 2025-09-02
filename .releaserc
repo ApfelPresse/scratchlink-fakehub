@@ -1,5 +1,0 @@
-{
-  "version_source": "pyproject.toml",
-  "upload_to_pypi": false,
-  "build_command": "pip install build && python -m build"
-}

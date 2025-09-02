@@ -1,9 +1,18 @@
 [project]
 name = "scratchlink-fakehub"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
     "websockets>=11.0"
 ]
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build_back-end = "setuptools.build_meta"
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+commit_parser = "conventional"
+build_command = "python -m build --sdist --wheel ."
 
 [project.optional-dependencies]
 dev = [
