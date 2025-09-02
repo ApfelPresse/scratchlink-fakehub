@@ -1,26 +1,32 @@
+# .github/workflows/release.yml
 name: Release
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_run:
     workflows: ["Build and Test"]
-    types:
-      - completed
+    types: [completed]
+
+permissions:
+  contents: write  # erlaubt Releases/Tags zu schreiben
 
 jobs:
   release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
+    concurrency: release
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # ganze Historie + Tags
+          # optional: fetch-tags: true  (nur sinnvoll zusammen mit fetch-depth: 0)
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
       - name: Install dependencies
-        run: |
-          pip install python-semantic-release
+        run: pip install python-semantic-release
       - name: Run semantic-release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
