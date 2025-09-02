@@ -7,7 +7,7 @@ dependencies = [
 
 [build-system]
 requires = ["setuptools>=61", "wheel"]
-build_back-end = "setuptools.build_meta"
+build-backend = "setuptools.build_meta"
 
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
