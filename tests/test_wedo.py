@@ -5,7 +5,7 @@ import json
 import pytest
 from websockets.exceptions import ConnectionClosedOK
 
-from tests.conftest import FakeWebSocket, b64_to_bytes, all_json
+from conftest import FakeWebSocket, b64_to_bytes, all_json
 from scratchlink_fakehub.wedo import WeDoDevice, WedoSensors, UUID, DEVICE_TYPES
 
 
