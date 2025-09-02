@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v1.0.2 (2025-09-02)
+
+### Bug Fixes
+
+- Dependabot.yml config
+  ([`de60715`](https://github.com/ApfelPresse/scratchlink-fakehub/commit/de60715fb80ac07eab81d0834ff3501951c1525b))
+
+
 ## v1.0.1 (2025-09-02)
 
 ### Bug Fixes
