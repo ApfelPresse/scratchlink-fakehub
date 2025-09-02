@@ -13,16 +13,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # wichtig: Tags & Historie für PSR
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.13'
+          python-version: "3.13"
       - name: Install deps
         run: pip install python-semantic-release build
-      - name: Run semantic-release
+      - name: semantic-release version (creates tag + GH Release)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          semantic-release publish
+          semantic-release version --skip-build
+      - name: semantic-release publish (uploads dists)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: semantic-release publish
