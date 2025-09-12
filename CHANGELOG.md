@@ -2,6 +2,25 @@
 
 <!-- version list -->
 
+## v1.0.4 (2025-09-12)
+
+### Bug Fixes
+
+- Imports
+  ([`f3046df`](https://github.com/ApfelPresse/scratchlink-fakehub/commit/f3046dfa480a679db3fc54509d0e6271d867b853))
+
+- Imports again
+  ([`a36ef30`](https://github.com/ApfelPresse/scratchlink-fakehub/commit/a36ef30548c18903d621963087931b4139175799))
+
+- Microbit class
+  ([`371fc6b`](https://github.com/ApfelPresse/scratchlink-fakehub/commit/371fc6bb90b4b9010a019fc5eebc3d44ab4c08ff))
+
+### Build System
+
+- **deps**: Bump actions/setup-python from 5 to 6
+  ([`a24f048`](https://github.com/ApfelPresse/scratchlink-fakehub/commit/a24f04825a65fc52864e1b90043a8ea2a05f8326))
+
+
 ## v1.0.3 (2025-09-02)
 
 ### Bug Fixes
