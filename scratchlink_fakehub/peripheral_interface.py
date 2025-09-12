@@ -34,8 +34,6 @@ class PeripheralInterface:
         msg_id = msg.get("id")
         params = msg.get("params", {})
 
-        logging.debug(f"→ {json.dumps(msg)}")
-
         if method == "discover":
             await self.discover(ws, msg_id)
         elif method == "connect":

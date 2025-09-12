@@ -3,6 +3,7 @@ import base64
 import json
 import logging
 from typing import Dict, Optional
+
 from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 from .peripheral_interface import PeripheralInterface
@@ -22,10 +23,12 @@ class WedoSensors:
     motor = "motor"
     tilt = "tilt"
     distance = "distance"
+    _led = "led"
 
 
 DEVICE_TYPES = {
     WedoSensors.motor: 0x01,
+    WedoSensors._led: 0x03,
     WedoSensors.tilt: 0x22,
     WedoSensors.distance: 0x23,
 }
@@ -59,12 +62,19 @@ class WeDoDevice(DevicePeripheral):
     def register_ws(self, ws):
         self.ws = ws
 
+    async def ack(self, ws, msg_id, result: Optional[dict] = None):
+        await ws.send(json.dumps({
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "result": (result or {})
+        }))
+
     async def handle_rpc(self, ws, msg):
         self.register_ws(ws)
         return await super().handle_rpc(ws, msg)
 
     async def start_notifications(self, ws, msg_id, params):
-        await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))
+        await self.ack(ws, msg_id)
         svc, char = params.get("serviceId"), params.get("characteristicId")
         logging.debug(f"[RECV] startNotifications → svc={svc[-4:]}, char={char[-4:]}")
 
@@ -89,7 +99,7 @@ class WeDoDevice(DevicePeripheral):
                 self.push_task = asyncio.create_task(self._push_loop())
 
     async def stop_notifications(self, ws, msg_id, params):
-        await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))
+        await self.ack(ws, msg_id)
         svc, char = params.get("serviceId"), params.get("characteristicId")
 
         if svc == UUID.SENSOR_SERVICE and char == UUID.SENSOR_CHAR:
@@ -103,6 +113,18 @@ class WeDoDevice(DevicePeripheral):
 
     async def write(self, ws, msg_id, params):
         data = base64.b64decode(params.get("message", ""))
+
+        if len(data) >= 4 and data[0] == 0x06 and data[1] == 0x04:
+            mode = data[2]
+            if mode == DEVICE_TYPES[WedoSensors._led] and len(data) >= 6:
+                r, g, b = data[3], data[4], data[5]
+                self.set_light_color(r, g, b)
+            else:
+                logging.debug(f"[LED] Unknown LED-Mode: data={data.hex()}")
+
+            await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))
+            return
+
         if len(data) >= 3:
             port = data[0]
             pwr = int(data[-1])
@@ -110,7 +132,7 @@ class WeDoDevice(DevicePeripheral):
             direction = 1 if power >= 0 else -1
             self.motor_power[port] = max(0, min(127, abs(power)))
             await self.on_motor_power(port, self.motor_power[port], direction)
-        await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))
+        await self.ack(ws, msg_id)
 
     async def _push_loop(self):
         try:
@@ -134,7 +156,6 @@ class WeDoDevice(DevicePeripheral):
                             "message": payload,
                         }
                     }
-                    logging.debug(f"-> [SEND] {msg}")
                     await self.ws.send(json.dumps(msg))
                 await asyncio.sleep(self.sensor_interval)
         except (ConnectionClosedError, ConnectionClosedOK):
@@ -188,23 +209,22 @@ class WeDoDevice(DevicePeripheral):
         self.tilt_x = max(0, min(255, x))
         self.tilt_y = max(0, min(255, y))
 
-    def tilt_up(self): self.set_tilt(0, 60)
-    def tilt_down(self): self.set_tilt(0, 30)
-    def tilt_left(self): self.set_tilt(60, 0)
-    def tilt_right(self): self.set_tilt(30, 0)
+    def tilt_up(self):
+        self.set_tilt(0, 60)
+
+    def tilt_down(self):
+        self.set_tilt(0, 30)
+
+    def tilt_left(self):
+        self.set_tilt(60, 0)
+
+    def tilt_right(self):
+        self.set_tilt(30, 0)
 
     def set_sensor_interval(self, seconds: float):
         self.sensor_interval = max(0.05, seconds)
         logging.info(f"→ [SENSOR LOOP] interval set to {self.sensor_interval:.2f}s")
 
-    async def set_light_color(self, color_index: int):
-        rgb = self._palette(color_index)
-        logging.info(f"→ [LED] index={color_index} → rgb={rgb}")
-
     @staticmethod
-    def _palette(idx: int):
-        table = [
-            (0, 0, 0), (255, 255, 255), (255, 0, 0), (0, 255, 0), (0, 0, 255),
-            (255, 255, 0), (255, 128, 0), (0, 255, 255), (255, 0, 255), (128, 128, 128)
-        ]
-        return table[idx % len(table)]
+    def set_light_color(r, g, b):
+        logging.info("-> [LED] rgb=%d,%d,%d", r, g, b)

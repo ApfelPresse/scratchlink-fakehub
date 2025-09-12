@@ -1,0 +1,15 @@
+← {"jsonrpc":"2.0","method":"discover","params":{"filters":[{"services":["00001523-1212-efde-1523-785feabcd123"]}],"optionalServices":["00004f0e-1212-efde-1523-785feabcd123"]},"id":0}
+→ {"jsonrpc": "2.0", "id": 0, "result": {}}
+→ {"jsonrpc": "2.0", "method": "didDiscoverPeripheral", "params": {"name": "Fake-Wedo", "peripheralId": "FAKE-WEDO-1234", "rssi": -40}}
+← {"jsonrpc":"2.0","method":"connect","params":{"peripheralId":"FAKE-WEDO-1234"},"id":1}
+→ {"jsonrpc": "2.0", "id": 1, "result": {}}
+← {"jsonrpc":"2.0","method":"write","params":{"serviceId":"00004f0e-1212-efde-1523-785feabcd123","characteristicId":"00001563-1212-efde-1523-785feabcd123","message":"AQIGFwEAAAAAAAA=","encoding":"base64"},"id":2}
+→ {"jsonrpc": "2.0", "id": 2, "result": {}}
+← {"jsonrpc":"2.0","method":"write","params":{"serviceId":"00004f0e-1212-efde-1523-785feabcd123","characteristicId":"00001565-1212-efde-1523-785feabcd123","message":"BgQDAAD/","encoding":"base64"},"id":3}
+→ {"jsonrpc": "2.0", "id": 3, "result": {}}
+← {"jsonrpc":"2.0","method":"startNotifications","params":{"serviceId":"00001523-1212-efde-1523-785feabcd123","characteristicId":"00001527-1212-efde-1523-785feabcd123"},"id":4}
+→ {"jsonrpc": "2.0", "id": 4, "result": {}}
+→ {"jsonrpc": "2.0", "method": "characteristicDidChange", "params": {"serviceId": "00001523-1212-efde-1523-785feabcd123", "characteristicId": "00001527-1212-efde-1523-785feabcd123", "encoding": "base64", "message": "AQEAAQABARAAAAAQ"}}
+→ {"jsonrpc": "2.0", "method": "characteristicDidChange", "params": {"serviceId": "00001523-1212-efde-1523-785feabcd123", "characteristicId": "00001527-1212-efde-1523-785feabcd123", "encoding": "base64", "message": "AgEAAQABARAAAAAQ"}}
+← {"jsonrpc":"2.0","method":"write","params":{"serviceId":"00004f0e-1212-efde-1523-785feabcd123","characteristicId":"00001565-1212-efde-1523-785feabcd123","message":"BgQDAP//","encoding":"base64"},"id":5}
+→ {"jsonrpc": "2.0", "id": 5, "result": {}}
