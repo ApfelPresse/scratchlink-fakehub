@@ -19,10 +19,6 @@ def all_json(sent):
 
 
 class FakeWebSocket:
-    # Minimal test double for a websockets connection.
-    # - Accepts a list of incoming JSON-serializable messages (dicts) or raw JSON strings.
-    # - Captures all outgoing messages via `send`.
-    # - Supports `async for` iteration.
     def __init__(self, incoming=None):
         self._incoming = list(incoming or [])
         for i, m in enumerate(self._incoming):

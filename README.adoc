@@ -3,10 +3,14 @@
 image::logo.png[]
 
 :toc:
+:toclevels: 2
 :toc-title: Table of Contents
 :icons: font
+:source-highlighter: rouge
 
-A lightweight WebSocket server emulating Scratch Link BLE devices – specifically LEGO® WeDo 2.0 peripherals.
+A tiny fake hub that behaves like *Scratch Link* and serves Scratch extensions locally.
+It starts a WebSocket server (default: `ws://127.0.0.1:20111`) and publishes fake peripherals
+that Scratch can *discover → connect* to.
 
 == Quick Start
 
@@ -19,11 +23,131 @@ python3 main.py
 
 Note: Scratch must be open and Scratch Link must be accessible on port 20111.
 
-== Project Overview
+== Using with Scratch
 
-`scratchlink-fakehub` simulates BLE peripherals via WebSockets for Scratch. It implements parts of the Scratch Link JSON-RPC protocol and is ideal for development and testing without real hardware.
+. Start Scratch (Desktop or Browser).
+. *Add Extension* → **micro:bit** or **LEGO® Education WeDo 2.0**.
+. The device list should show an entry from this hub (e.g. “Fake-Device”). Connect.
+. Try blocks (buttons/gestures/tilt/pins for micro:bit; sensors for WeDo).
 
-== Supported Devices
+TIP: Every JSON-RPC message sent/received is logged (depending on your hub setup),
+which is very handy for debugging and reverse engineering.
+
+== micro:bit
+
+The fake micro:bit exposes a **session stream** on **Service `0xF005` (61445)**
+with these characteristics:
+
+* **RX** (notify): `5261da01-fa7e-42ab-850b-7c80220097cc` — periodic snapshot
+* **TX** (write):  `5261da02-fa7e-42ab-850b-7c80220097cc` — display commands
+
+=== Smoke test (micro:bit)
+Minimal example — starts the hub and briefly triggers button A:
+[source,python]
+----
+import asyncio, logging
+from scratchlink_fakehub.device import FakeDevice
+from scratchlink_fakehub.hub import ScratchLinkHub
+from scratchlink_fakehub.microbit import MicrobitDevice
+
+logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s] [%(levelname)s] %(message)s")
+
+async def sensor_loop(mb: MicrobitDevice):
+    await asyncio.sleep(2)     # give Scratch time to connect
+    await mb.press_a(); await asyncio.sleep(1); await mb.release_a()
+
+async def main():
+    link = FakeDevice()
+    mb = MicrobitDevice()
+    hub = ScratchLinkHub(link, devices=[mb])
+    await asyncio.gather(hub.start(), sensor_loop(mb))
+
+asyncio.run(main())
+----
+
+=== Snapshot layout (RX)
+10-byte frame (tilt is little-endian int16):
+[cols="1,5",options="header"]
+|===
+| Byte | Meaning
+| 0–1  | `tiltX` (int16, hi/lo)
+| 2–3  | `tiltY` (int16, hi/lo)
+| 4    | `btnA` (0/1)
+| 5    | `btnB` (0/1)
+| 6    | `pin0` (0/1)
+| 7    | `pin1` (0/1)
+| 8    | `pin2` (0/1)
+| 9    | `gesture` (uint8)
+|===
+
+NOTE: For *When pin X connected*, set the corresponding pin byte (6–8) from 0→1
+and keep it for ~0.3–0.5 s, then set it back to 0.
+
+=== Gesture mapping
+This implementation uses the following values (tested with Scratch):
+[cols="1,3",options="header"]
+|===
+| Gesture | Code
+| moved   | 4
+| shaken  | 2
+| jumped  | 1
+| none    | 0
+|===
+
+=== Display (TX)
+The TX characteristic accepts simple display commands:
+[cols="1,5",options="header"]
+|===
+| Opcode | Meaning
+| `0x81` | *display text* — UTF‑8 text
+| `0x82` | *display 5×5* — 5 bytes bitmap; all zeros ⇒ *clear display*
+| `0x80` | *set pixel* — 3 bytes: `x`,`y`,`on` (0/1)
+|===
+
+=== Python API (`MicrobitDevice`)
+*Buttons*
+[source,python]
+----
+await mb.press_a();  await mb.release_a()
+await mb.press_b();  await mb.release_b()
+----
+
+*Gestures*
+[source,python]
+----
+await mb.moved()
+await mb.shaken()
+await mb.jumped()
+await mb.clear_gesture()
+----
+
+*Tilt*
+[source,python]
+----
+await mb.tilt_front(); await mb.tilt_back()
+await mb.tilt_left();  await mb.tilt_right()
+await mb.tilt_any();   await mb.reset_tilt()
+----
+
+*Pins*
+[source,python]
+----
+await mb.pin_connected(0, True)   # connect P0
+await mb.pin_connected(0, False)  # reset
+----
+
+*Display callbacks* (default: logging; override if you want a UI)
+[source,python]
+----
+async def on_display_text(self, text: str): ...
+async def on_display_matrix(self, rows: Sequence[int]): ...
+async def on_clear_display(self): ...
+async def on_set_pixel(self, x: int, y: int, on: bool): ...
+----
+
+== LEGO WeDo 2.0
+
+=== Supported Devices
 
 Currently emulates:
 
@@ -32,9 +156,9 @@ Currently emulates:
 
 Ports and device types are configurable.
 
-== Protocol Structure & Communication
+=== Protocol Structure & Communication
 
-=== JSON-RPC Overview
+==== JSON-RPC Overview
 
 Scratch Link communicates via JSON-RPC. Each message contains a method, optional params, and an ID.
 

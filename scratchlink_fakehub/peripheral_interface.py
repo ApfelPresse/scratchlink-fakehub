@@ -1,21 +1,17 @@
 import json
 import logging
+from typing import Optional
 
 
 class PeripheralInterface:
-    def __init__(self, device_name="Fake-Wedo"):
+    def __init__(self, device_name="Fake-Device"):
         self.name = device_name
 
     async def discover(self, ws, msg_id):
-        await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))
-        await ws.send(json.dumps({
-            "jsonrpc": "2.0",
-            "method": "didDiscoverPeripheral",
-            "params": {"name": self.name, "peripheralId": "FAKE-WEDO-1234", "rssi": -40}
-        }))
+        pass
 
     async def connect(self, ws, msg_id):
-        await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))
+        pass
 
     async def start_notifications(self, ws, msg_id, params):
         pass
@@ -34,8 +30,6 @@ class PeripheralInterface:
         msg_id = msg.get("id")
         params = msg.get("params", {})
 
-        logging.debug(f"→ {json.dumps(msg)}")
-
         if method == "discover":
             await self.discover(ws, msg_id)
         elif method == "connect":
@@ -50,4 +44,13 @@ class PeripheralInterface:
             await self.read(ws, msg_id, params)
         else:
             logging.debug(f"ACTION → fallback ACK method {method}")
-            await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))
+            await self.ack(ws, msg_id)
+            # await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))
+
+    @staticmethod
+    async def ack(ws, msg_id, result: Optional[dict] = None):
+        await ws.send(json.dumps({
+            "jsonrpc": "2.0",
+            "id": msg_id,
+            "result": (result or {})
+        }))
