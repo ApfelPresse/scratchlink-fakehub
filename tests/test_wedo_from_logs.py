@@ -6,7 +6,7 @@ import pytest
 
 from conftest import FakeWebSocket
 from scratchlink_fakehub.wedo import WeDoDevice, WedoSensors, UUID
-from tests.scratch_fake import parse_log_file, ScratchFakeRunner
+from scratch_fake import parse_log_file, ScratchFakeRunner
 
 LED_LOG = "debug_message_wedo_led.json"
 DIST_TILT_LOG = "debug_message_wedo_distance_tilt.json"
