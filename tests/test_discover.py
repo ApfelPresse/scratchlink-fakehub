@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from conftest import FakeWebSocket
-from scratchlink_fakehub.wedo import WeDoDevice
+from scratchlink_fakehub.device import FakeDevice
 from tests.scratch_fake import parse_log_file, ScratchFakeRunner
 
 DISCOVER_LOG = "debug_message_discover.json"
@@ -21,7 +21,7 @@ def _load_steps(name: str):
 async def test_discover_from_log():
     steps = _load_steps(DISCOVER_LOG)
 
-    d = WeDoDevice()
+    d = FakeDevice()
     ws = FakeWebSocket(incoming=[])
 
     await ScratchFakeRunner(d, ws).play(steps)

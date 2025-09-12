@@ -38,19 +38,19 @@ def b64(payload: bytes) -> str:
     return base64.b64encode(payload).decode("ascii")
 
 
-class DevicePeripheral(PeripheralInterface):
-    def __init__(self, device_name="Fake-Wedo"):
-        super().__init__(device_name)
+# class DevicePeripheral(PeripheralInterface):
+#     def __init__(self):
+#         super().__init__()
+#
+#     async def stop(self):
+#         pass
+
+
+class WeDoDevice(PeripheralInterface):
+    def __init__(self, devices: Optional[Dict[int, str]] = None):
+        super().__init__()
         self.notifications_ports = False
         self.notifications_sensor = False
-
-    async def stop(self):
-        pass
-
-
-class WeDoDevice(DevicePeripheral):
-    def __init__(self, device_name="Fake-Wedo", devices: Optional[Dict[int, str]] = None):
-        super().__init__(device_name)
         self.devices = devices or {}
         self.motor_power = {port: 100 for port, dev in self.devices.items() if dev == WedoSensors.motor}
         self.tilt_x, self.tilt_y = 0, 200
@@ -61,13 +61,6 @@ class WeDoDevice(DevicePeripheral):
 
     def register_ws(self, ws):
         self.ws = ws
-
-    async def ack(self, ws, msg_id, result: Optional[dict] = None):
-        await ws.send(json.dumps({
-            "jsonrpc": "2.0",
-            "id": msg_id,
-            "result": (result or {})
-        }))
 
     async def handle_rpc(self, ws, msg):
         self.register_ws(ws)

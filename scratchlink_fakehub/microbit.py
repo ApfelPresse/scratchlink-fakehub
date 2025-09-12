@@ -39,27 +39,15 @@ class UUID:
     PIN_EVENT_OPCODE = 0xA5
 
 
-class DevicePeripheral(PeripheralInterface):
-    def __init__(self, device_name="Fake-Microbit"):
-        super().__init__(device_name)
-        self.ws = None
-
-    def register_ws(self, ws):
-        self.ws = ws
-
-    async def stop(self):
-        pass
-
-
-class MicrobitDevice(DevicePeripheral):
-    def __init__(self, device_name="Fake-Microbit"):
-        super().__init__(device_name)
+class MicrobitDevice(PeripheralInterface):
+    def __init__(self):
+        super().__init__()
         self.notifications_rx = False
         self.push_task: Optional[asyncio.Task] = None
         self._hb_t = 0
 
     async def handle_rpc(self, ws, msg):
-        self.register_ws(ws)
+        self.ws = ws
         logging.debug(f"[RPC] received: {msg}")
         return await super().handle_rpc(ws, msg)
 
