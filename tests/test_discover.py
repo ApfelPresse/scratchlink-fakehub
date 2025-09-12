@@ -5,7 +5,7 @@ import pytest
 
 from conftest import FakeWebSocket
 from scratchlink_fakehub.device import FakeDevice
-from tests.scratch_fake import parse_log_file, ScratchFakeRunner
+from scratch_fake import parse_log_file, ScratchFakeRunner
 
 DISCOVER_LOG = "debug_message_discover.json"
 
