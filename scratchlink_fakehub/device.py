@@ -11,7 +11,6 @@ class FakeDevice(PeripheralInterface):
         self.peripheralId = device_name
 
     async def discover(self, ws, msg_id):
-        # await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))
         await self.ack(ws, msg_id)
         await ws.send(json.dumps({
             "jsonrpc": "2.0",
@@ -21,4 +20,3 @@ class FakeDevice(PeripheralInterface):
 
     async def connect(self, ws, msg_id):
         await self.ack(ws, msg_id)
-        # await ws.send(json.dumps({"jsonrpc": "2.0", "id": msg_id, "result": {}}))

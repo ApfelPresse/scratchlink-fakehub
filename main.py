@@ -24,7 +24,16 @@ class MyFakeWeDo(WeDoDevice):
 async def sensor_loop(device):
     await asyncio.sleep(2)  # Warte bis Scratch verbunden ist
     while True:
-        pass
+        await asyncio.sleep(2)
+
+        await device.press_a()
+        # await asyncio.sleep(1)
+        # await device.press_a()
+        # await asyncio.sleep(1)
+        # await device.press_a()
+        await asyncio.sleep(5)
+        # await device.release_a()
+
         # await device.press_a()
         # await asyncio.sleep(2)
         # await device.release_a()
@@ -34,12 +43,12 @@ async def sensor_loop(device):
         # await device.release_b()
         # await asyncio.sleep(2)
 
-        device.set_distance(90)
-        device.tilt_up()
-        await asyncio.sleep(1)
-        device.set_distance(10)
-        device.tilt_down()
-        await asyncio.sleep(1)
+        # device.set_distance(90)
+        # device.tilt_up()
+        # await asyncio.sleep(1)
+        # device.set_distance(10)
+        # device.tilt_down()
+        # await asyncio.sleep(1)
 
         # device.set_distance(10)
         # device.tilt_up()
@@ -57,13 +66,13 @@ async def sensor_loop(device):
 
 async def main():
     link = FakeDevice()
-    wedo = MyFakeWeDo()
+    # wedo = MyFakeWeDo()
     microbit = MicrobitDevice()
-    hub = ScratchLinkHub(link, devices=[wedo])
+    hub = ScratchLinkHub(link, devices=[microbit])
 
     await asyncio.gather(
         hub.start(),
-        sensor_loop(wedo),
+        sensor_loop(microbit),
     )
 
 

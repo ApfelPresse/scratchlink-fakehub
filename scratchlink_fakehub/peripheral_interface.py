@@ -4,8 +4,8 @@ from typing import Optional
 
 
 class PeripheralInterface:
-    def __init__(self):
-        pass
+    def __init__(self, device_name="Fake-Device"):
+        self.name = device_name
 
     async def discover(self, ws, msg_id):
         pass

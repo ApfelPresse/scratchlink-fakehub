@@ -38,14 +38,6 @@ def b64(payload: bytes) -> str:
     return base64.b64encode(payload).decode("ascii")
 
 
-# class DevicePeripheral(PeripheralInterface):
-#     def __init__(self):
-#         super().__init__()
-#
-#     async def stop(self):
-#         pass
-
-
 class WeDoDevice(PeripheralInterface):
     def __init__(self, devices: Optional[Dict[int, str]] = None):
         super().__init__()

@@ -28,7 +28,7 @@ class ScratchLinkHub:
 
     async def send(self, message: str):
         logging.debug("→ %s", message)
-        self.write_to_log(f"→ {message}")
+        # self.write_to_log(f"→ {message}")
         await self.ws.send(message)
 
     async def _handle_session(self, websocket):
@@ -37,7 +37,7 @@ class ScratchLinkHub:
         logging.info("CONNECTED")
         try:
             async for raw in websocket:
-                self.write_to_log(f"← {raw}")
+                # self.write_to_log(f"← {raw}")
                 logging.debug("← %s", raw)
                 try:
                     msg = json.loads(raw)
